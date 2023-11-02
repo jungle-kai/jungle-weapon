@@ -32,3 +32,8 @@ app.get('/', (req, res) => {
 app.listen(port, () => {
     console.log(port, 'port open.');
 });
+
+/* just some change to test git */
+// creating a local branch, making changes, committing
+// one method is to checkout to local main, 'git pull origin main' to make updates, then to 'git merge local_branch_name' to local main
+// another method : 'git push -u `local_branch_name`', effectively create a new branch in remote (for PR)
