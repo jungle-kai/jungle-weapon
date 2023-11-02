@@ -39,4 +39,5 @@ app.listen(port, () => {
 // (1) One way is to checkout to local main, 'git pull origin main' to update,
 // then to 'git merge local_branch_name' and keep the local master as up to date as possible.
 // We can then git push to remote master as we wish.
-// (2) Second way is to simply `git push -u local_branch_name`, which creates a new branch in remote (PR Req)
+// (2) Second way is to simply `git push -u origin local_branch_name`, 
+// which creates a new branch in remote -> PR Req to handle changes
