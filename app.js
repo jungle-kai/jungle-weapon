@@ -41,4 +41,3 @@ app.listen(port, () => {
 // then to 'git merge local_branch_name' and keep the local master as up to date as possible.
 // We can then git push to remote master as we wish.
 // (2) Second way is to simply `git push -u local_branch_name`, which creates a new branch in remote (PR Req)
-
