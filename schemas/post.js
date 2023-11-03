@@ -21,10 +21,6 @@ const postSchema = new mongoose.Schema({
         type: String,
         required: true
     },
-    postPassword: {
-        type: String,
-        required: true
-    },
     postContent: {
         type: String,
         required: true

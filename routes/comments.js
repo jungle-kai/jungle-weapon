@@ -63,7 +63,15 @@ router.post("/:postID", JWT_auth, async (req, res) => { // require authenticatio
 
         // now add comment and add user details as well
         const newComment = await Comment.create({ postID, commentAuthor: nickname, commentContent });
-        res.status(201).json({ success: true, newComment: newComment });
+        res.status(201).json({
+            success: true, newComment: {
+                postID: newComment.postID,
+                commentID: newComment.commentID,
+                commentTime: newComment.commentTime,
+                commentAuthor: newComment.commentAuthor,
+                commentContent: newComment.commentContent
+            }
+        });
     } catch (error) {
         console.error(error);
         res.status(500).json({ success: false, message: "Internal Server Error : Failed to POST comment" });
