@@ -5,8 +5,13 @@ const router = express.Router();
 /* Import Schemas */
 const Post = require("../schemas/post");
 const Comment = require("../schemas/comment");
+const Member = require("../schemas/member");
 
-/* API to GET list of all comments on a post */
+/* Import JWT Authorization Middleware */
+const jwt = require('jsonwebtoken');
+const JWT_auth = require("../middlewares/jwtAuth");
+
+/* API to GET list of all comments on a post ; no API for single comments */
 router.get("/:postID", async (req, res) => {
 
     const { postID } = req.params;
@@ -30,8 +35,17 @@ router.get("/:postID", async (req, res) => {
 });
 
 /* API to POST a comment to a post */
-router.post("/:postID", async (req, res) => {
+router.post("/:postID", JWT_auth, async (req, res) => { // require authentication before posting comment
 
+    // authentication & extraction
+    const memberID = req.user.userId;
+    const member = await Member.findOne({ memberID });
+    if (!member) {
+        return res.status(404).json({ success: false, message: 'An error with your login credentials. Please contact Admin.' });
+    }
+    const nickname = member.nickname;
+
+    // post prep
     const { postID } = req.params;
     const { commentContent } = req.body;
 
@@ -47,8 +61,8 @@ router.post("/:postID", async (req, res) => {
             return res.status(404).json({ success: false, message: "Post not found." })
         };
 
-        // now add comment
-        const newComment = await Comment.create({ postID, commentContent });
+        // now add comment and add user details as well
+        const newComment = await Comment.create({ postID, commentAuthor: nickname, commentContent });
         res.status(201).json({ success: true, newComment: newComment });
     } catch (error) {
         console.error(error);
@@ -57,9 +71,18 @@ router.post("/:postID", async (req, res) => {
 
 });
 
-/* API to PUT (update) one existing post */
-router.put("/:postID/:commentID", async (req, res) => {
+/* API to PUT (update) one existing comment */
+router.put("/:postID/:commentID", JWT_auth, async (req, res) => { // require authentication before editing comment
 
+    // authentication & extraction
+    const memberID = req.user.userId;
+    const member = await Member.findOne({ memberID });
+    if (!member) {
+        return res.status(404).json({ success: false, message: 'An error with your login credentials. Please contact Admin.' });
+    }
+    const nickname = member.nickname;
+
+    // edit prep
     const { postID, commentID } = req.params;
     const { commentContent } = req.body;
 
@@ -69,16 +92,21 @@ router.put("/:postID/:commentID", async (req, res) => {
     }
 
     try {
-        // first find the post
+        // first find the post and verify that it exists
         const targetPost = await Post.findOne({ postID });
         if (!targetPost) {
             return res.status(404).json({ success: false, message: "Post not found." })
         };
 
         // Check if the comment exists without retrieving the entire document
-        const commentExists = await Comment.exists({ commentID });
-        if (!commentExists) {
+        const targetComment = await Comment.findOne({ commentID });
+        if (!targetComment) {
             return res.status(404).json({ success: false, message: "Comment not found." });
+        }
+
+        // verify that the user is the author of the comment
+        if (nickname != targetComment.commentAuthor) {
+            return res.status(401).json({ success: false, message: "You are not the author of this comment." });
         }
 
         // update the comment
@@ -97,17 +125,36 @@ router.put("/:postID/:commentID", async (req, res) => {
 });
 
 /* API to DELETE one existing comment */
-router.delete("/:postID/:commentID", async (req, res) => {
+router.delete("/:postID/:commentID", JWT_auth, async (req, res) => { // require authentication before deleting comment
 
+    // authentication & extraction
+    const memberID = req.user.userId;
+    const member = await Member.findOne({ memberID });
+    if (!member) {
+        return res.status(404).json({ success: false, message: 'An error with your login credentials. Please contact Admin.' });
+    }
+    const nickname = member.nickname;
+
+    // delete prep
     const { postID, commentID } = req.params;
-    // currently lacks authentication and softDelete (for recovery, mark as hidden)
 
     try {
-        // first find the post
+        // first find the post to verify that it exists
         const targetPost = await Post.findOne({ postID });
         if (!targetPost) {
             return res.status(404).json({ success: false, message: "Post not found." })
         };
+
+        // Check if the comment exists without retrieving the entire document
+        const targetComment = await Comment.findOne({ commentID });
+        if (!targetComment) {
+            return res.status(404).json({ success: false, message: "Comment not found." });
+        }
+
+        // verify that the user is the author of the comment
+        if (nickname != targetComment.commentAuthor) {
+            return res.status(401).json({ success: false, message: "You are not the author of this comment." });
+        }
 
         // now delete the post
         const result = await Comment.deleteOne({ commentID });

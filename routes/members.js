@@ -99,7 +99,7 @@ router.post('/login', async (req, res) => {
 
         // generate a JWT token
         const token = jwt.sign(
-            { userId: user._id }, // MongoDB unique value ; instead of nickname of memberID (encoded not encrypted)
+            { userId: user.memberID }, // MongoDB unique value ; instead of nickname of memberID (encoded not encrypted)
             jwtSecret,
             { expiresIn: '1h' } // Token expires in 1 hour
         );

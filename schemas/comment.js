@@ -12,6 +12,10 @@ const commentSchema = new mongoose.Schema({
         required: true,
         unique: true
     },
+    commentAuthor: {
+        type: String,
+        required: true
+    },
     commentTime: {
         type: Date,
         default: Date.now, // try using moment.js or date-fns later (this is in m-secs)

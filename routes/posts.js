@@ -5,6 +5,11 @@ const router = express.Router();
 /* Import Schemas */
 const Post = require("../schemas/post");
 const Comment = require("../schemas/comment");
+const Member = require("../schemas/member");
+
+/* Import JWT Authorization Middleware */
+const jwt = require('jsonwebtoken');
+const JWT_auth = require("../middlewares/jwtAuth");
 
 /* Password Protection */
 const bcrypt = require('bcrypt');
@@ -24,9 +29,19 @@ router.get("/", async (req, res) => {
 });
 
 /* API to POST one new post */
-router.post("/", async (req, res) => {
+router.post("/", JWT_auth, async (req, res) => { // require JWT_auth pass before posting
 
-    const { postTitle, postAuthor, postPassword, postContent } = req.body;
+    // authentication & extraction
+    const memberID = req.user.userId;
+    const member = await Member.findOne({ memberID });
+    if (!member) {
+        return res.status(404).json({ success: false, message: 'An error with your login credentials. Please contact Admin.' });
+    }
+    const nickname = member.nickname;
+
+    // post creation prep
+    const { postTitle, postPassword, postContent } = req.body;
+    const postAuthor = nickname;
     const hashedPassword = await bcrypt.hash(postPassword, saltRounds);
 
     try {
@@ -44,7 +59,7 @@ router.get("/:postID", async (req, res) => {
     const { postID } = req.params;
 
     try {
-        const targetPost = await Post.findOne({ postID }).select('-_id -__v').lean(); // UUID = String, and key:value are same
+        const targetPost = await Post.findOne({ postID }).select('-_id -__v -postPassword').lean(); // UUID = String, and key:value are same
         if (!targetPost) {
             return res.status(404).json({ success: false, message: "Post not found." })
         };
@@ -55,8 +70,17 @@ router.get("/:postID", async (req, res) => {
 });
 
 /* API to PUT (update) one existing post */
-router.put("/:postID", async (req, res) => {
+router.put("/:postID", JWT_auth, async (req, res) => { // require JWT_auth pass before updating post
 
+    // authentication & extraction
+    const memberID = req.user.userId;
+    const member = await Member.findOne({ memberID });
+    if (!member) {
+        return res.status(404).json({ success: false, message: 'An error with your login credentials. Please contact Admin.' });
+    }
+    const nickname = member.nickname;
+
+    // post edit prep
     const { postID } = req.params;
     const { postPassword, postContent } = req.body; // should change as we implement bcrypt
 
@@ -66,6 +90,11 @@ router.put("/:postID", async (req, res) => {
         if (!foundPost) {
             return res.status(404).json({ success: false, message: "Post not found." });
         };
+
+        // verify that the user is the author
+        if (nickname != foundPost.postAuthor) {
+            return res.status(401).json({ success: false, message: "You are not the author of this post." });
+        }
 
         // now verify the password
         const isMatch = await bcrypt.compare(postPassword, foundPost.postPassword);
@@ -84,14 +113,43 @@ router.put("/:postID", async (req, res) => {
 });
 
 /* API to DELETE one existing post */
-router.delete("/:postID", async (req, res) => {
+router.delete("/:postID", JWT_auth, async (req, res) => { // require JWT_auth pass before deleting post
 
+    // authentication & extraction
+    const memberID = req.user.userId;
+    const member = await Member.findOne({ memberID });
+    if (!member) {
+        return res.status(404).json({ success: false, message: 'An error with your login credentials. Please contact Admin.' });
+    }
+    const nickname = member.nickname;
+
+    // delete prep
     const { postID } = req.params;
+    const { postPassword } = req.body;
 
     try { // currently lacks authentication and softDelete (for recovery, mark as hidden)
+
+        // find the post
+        const targetPost = await Post.findOne({ postID });
+        if (!targetPost) {
+            return res.status(404).json({ success: false, message: "Post does not exist." });
+        };
+
+        // verify authorship
+        if (nickname != targetPost.postAuthor) {
+            return res.status(401).json({ success: false, message: "You are not the author of this post." });
+        };
+
+        // now verify the post password
+        const isMatch = await bcrypt.compare(postPassword, targetPost.postPassword);
+        if (!isMatch) {
+            return res.status(401).json({ success: false, message: "Check your password again." });
+        }
+
+        // finally delete the post
         const result = await Post.deleteOne({ postID });
         if (result.deletedCount === 0) {
-            return res.status(404).json({ success: false, message: "Post does not exist." });
+            return res.status(404).json({ success: false, message: "Delete Failed." });
         }
         res.json({ success: true, message: "Post was successfully deleted." })
     } catch (error) {
