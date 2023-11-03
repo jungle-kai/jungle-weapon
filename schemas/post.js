@@ -10,14 +10,14 @@ const postSchema = new mongoose.Schema({
     },
     postTime: {
         type: Date,
-        default: Date.now, // try using moment.js or date-fns later (this is in m-secs)
-        required: true
-    },
-    postTitle: {
-        type: String,
+        default: Date.now,
         required: true
     },
     postAuthor: {
+        type: String,
+        required: true
+    },
+    postTitle: {
         type: String,
         required: true
     },

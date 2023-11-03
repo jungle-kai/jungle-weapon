@@ -2,7 +2,7 @@ const mongoose = require("mongoose");
 const { v4: uuidv4 } = require('uuid'); // UUID generator
 
 const memberSchema = new mongoose.Schema({
-    memberID: {
+    memberID: { // Used in JWT
         type: String, // UUID generator creates Strings.
         default: uuidv4, // UUID function
         required: true,
@@ -14,7 +14,7 @@ const memberSchema = new mongoose.Schema({
         unique: true
     },
     password: {
-        type: String, // try using bCrypt later (npm install bcrypt)
+        type: String,
         required: true
     },
 });

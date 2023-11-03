@@ -10,7 +10,7 @@ require('dotenv').config();
 const connect = require("./schemas");
 connect();
 
-/* JSON middleware to handle body data */
+/* JSON middleware to handle body data (parsing etc) */
 app.use(express.json());
 
 /* Use routes/index.js to access routers */
@@ -36,4 +36,5 @@ app.listen(port, () => {
 // then to 'git merge local_branch_name' and keep the local master as up to date as possible.
 // We can then git push to remote master as we wish.
 // (2) Second way is to simply `git push -u origin local_branch_name`, 
-// which creates a new branch in remote -> PR Req to handle changes
+// which creates a new branch in remote -> PR Req to handle changes.
+// In working with others, the second method makes most sense.

@@ -16,28 +16,22 @@ const jwtSecret = process.env.JWT_SECRET; // .env file for secret key (excluded 
 /* Function to check validity of registration request */
 function join_validity_check(nickname, password, password_check) {
 
-    // check nickname
+    // Return error messages if condition is triggered
     const regex = /^[A-Za-z0-9]{3,}$/;
     if (!regex.test(nickname)) {
-        return 'name fail';
-    };
-
-    // check length
+        return "Nickname must be at least 3 characters long and contain only alphanumeric characters.";
+    }
     if (password.length < 4) {
-        return 'pwd length fail';
-    };
-
-    // check nickname match 
+        return "Password must be at least 4 characters long.";
+    }
     if (password.includes(nickname)) {
-        return 'pwd includes nickname';
-    };
+        return "Password cannot include the nickname.";
+    }
+    if (password !== password_check) {
+        return "Passwords do not match.";
+    }
 
-    // check password_check match
-    if (password != password_check) {
-        return 'pwd check fail';
-    };
-
-    return 'no problem';
+    return null; // null indicates no errors
 }
 
 /* API to register as a member (POST) */
@@ -45,33 +39,27 @@ router.post('/register', async (req, res) => {
 
     const { nickname, password, password_check } = req.body;
 
-    // verify details
-    const result = join_validity_check(nickname, password, password_check);
-    if (result == 'name fail') {
-        res.status(400).json({ success: false, message: "Nickname conditions failed." });
+    // Verify that the entries are valid
+    const validationError = join_validity_check(nickname, password, password_check);
+    if (validationError) {
+        res.status(400).json({ success: false, message: validationError });
 
-    } else if (result == 'pwd length fail') {
-        res.status(400).json({ success: false, message: "Password conditions failed." });
-
-    } else if (result == 'pwd includes nickname') {
-        res.status(400).json({ success: false, message: "Password conditions failed." });
-
-    } else if (result == 'pwd check fail') {
-        res.status(400).json({ success: false, message: "Passwords do not match." });
-
-    } else { // 'no problem'
+    } else {
 
         try {
-            // search the Members DB for matching nickname
+            // Verify that the name is not taken
             const namecheck = await Member.findOne({ nickname });
             if (namecheck) {
                 return res.status(404).json({ success: false, message: "Nickname Exists" });
             };
 
-            // if name doesn't exist, create one
+            // Hash the password entry and create membership
             const hashedPassword = await bcrypt.hash(password, saltRounds);
             const newMember = await Member.create({ nickname, password: hashedPassword });
-            res.status(201).json({ success: true, newMember: { nickname: newMember.nickname } }); // do not return password
+
+            // Return result to the user
+            res.status(201).json({ success: true, newMember: { nickname: newMember.nickname } });
+
         } catch (error) {
             console.error(error);
             res.status(500).json({ success: false, message: "Internal Server Error : Registration Failed." });
