@@ -22,7 +22,7 @@ const postSchema = new mongoose.Schema({
         required: true
     },
     postPassword: {
-        type: String, // try using bCrypt later (npm install bcrypt)
+        type: String,
         required: true
     },
     postContent: {

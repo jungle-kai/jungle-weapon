@@ -3,6 +3,9 @@ const express = require('express');
 const app = express();
 const port = 3000;
 
+/* JWT Secret in .env */
+require('dotenv').config();
+
 /* Schema Connection */
 const connect = require("./schemas");
 connect();
@@ -11,17 +14,10 @@ connect();
 app.use(express.json());
 
 /* Use routes/index.js to access routers */
-const { postsRoutes, commentsRoutes } = require('./routes');
+const { postsRoutes, commentsRoutes, membersRoutes } = require('./routes');
 app.use('/posts', postsRoutes);
 app.use('/comments', commentsRoutes);
-
-// /* Declare and use the Posts Router (Middleware) */
-// const postsRouter = require("./routes/posts");
-// app.use("/posts", postsRouter);
-
-// /* Declare and use the Comments Router (Middleware) */
-// const commentsRouter = require("./routes/comments");
-// app.use("/comments", commentsRouter);
+app.use('/members', membersRoutes);
 
 /* Placeholder Landing Page */
 app.get('/', (req, res) => {

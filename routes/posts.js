@@ -6,6 +6,10 @@ const router = express.Router();
 const Post = require("../schemas/post");
 const Comment = require("../schemas/comment");
 
+/* Password Protection */
+const bcrypt = require('bcrypt');
+const saltRounds = 10; // change for higher/lower security requirement
+
 /* API to GET list of all posts */
 router.get("/", async (req, res) => {
 
@@ -23,13 +27,11 @@ router.get("/", async (req, res) => {
 router.post("/", async (req, res) => {
 
     const { postTitle, postAuthor, postPassword, postContent } = req.body;
+    const hashedPassword = await bcrypt.hash(postPassword, saltRounds);
 
     try {
-        const newPost = await Post.create({ postTitle, postAuthor, postPassword, postContent });
-        // mongoose create() creates and saves to db, but the lack of explicit save() does not trigger the pre-save hook.
-        // const newPost = new Post({ postTitle, postAuthor, postPassword, postContent });
-        // const savedPost = await newPost.save();
-        res.status(201).json({ success: true, newPost: newPost });
+        const newPost = await Post.create({ postTitle, postAuthor, postPassword: hashedPassword, postContent });
+        res.status(201).json({ success: true, newPost: { postID: newPost.postID, postTitle, postAuthor, postContent } });
     } catch (error) {
         console.error(error);
         res.status(500).json({ success: false, message: "Internal Server Error : Failed to POST new post." })
@@ -66,9 +68,10 @@ router.put("/:postID", async (req, res) => {
         };
 
         // now verify the password
-        if (postPassword != foundPost.postPassword) { // should change as we implement bcrypt
-            return res.status(401).json({ success: false, message: "Password does not match." });
-        };
+        const isMatch = await bcrypt.compare(postPassword, foundPost.postPassword);
+        if (!isMatch) {
+            return res.status(401).json({ success: false, message: "Check your password again." });
+        }
 
         // and finally update the post as password was matched
         await Post.updateOne({ postID }, { $set: { postContent } });
