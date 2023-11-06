@@ -3,21 +3,21 @@ const express = require('express');
 const app = express();
 const port = 3000;
 
-/* JWT Secret in .env */
+/* JWT Secret & DB Login data in .env */
 require('dotenv').config();
 
-/* Schema Connection */
-const connect = require("./schemas");
-connect();
+/* MySQL Connection */
+const { connectToDatabase } = require('./models');
+connectToDatabase();
 
 /* JSON middleware to handle body data (parsing etc) */
 app.use(express.json());
 
 /* Use routes/index.js to access routers */
 const { postsRoutes, commentsRoutes, membersRoutes } = require('./routes');
-app.use('/posts', postsRoutes);
-app.use('/comments', commentsRoutes);
-app.use('/members', membersRoutes);
+app.use('/api/posts', postsRoutes);
+app.use('/api/comments', commentsRoutes);
+app.use('/api/members', membersRoutes);
 
 /* Placeholder Landing Page */
 app.get('/', (req, res) => {

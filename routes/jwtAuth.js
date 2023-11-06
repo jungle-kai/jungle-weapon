@@ -1,9 +1,14 @@
+// routes/jwtAuth.js ; a middleware to protect certain routes
+
 const jwt = require('jsonwebtoken');
 
 const jwtMiddleware = (req, res, next) => {
     try {
         // http header -> authorization -> 'Bearer <token>'
         // looks something like -> Authorization: Bearer ag8w47awi4j...
+        if (!req.headers.authorization) {
+            return res.status(401).json({ message: 'No authentication token provided.' });
+        }
         const token = req.headers.authorization.split(' ')[1];
 
         // verify the token using secret key in .env file

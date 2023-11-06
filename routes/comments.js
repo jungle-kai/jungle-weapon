@@ -1,33 +1,40 @@
+// routes/comments.js
+
 /* Express */
 const express = require('express');
 const router = express.Router();
 
-/* Import Schemas */
-const Post = require("../schemas/post");
-const Comment = require("../schemas/comment");
-const Member = require("../schemas/member");
+/* Import Models */
+const { Member, Post, Comment } = require("../models/index");
 
 /* Import JWT Authorization Middleware */
 const jwt = require('jsonwebtoken');
-const JWT_auth = require("../middlewares/jwtAuth");
+const JWT_auth = require("./jwtAuth");
 
 /* API to GET list of all comments on a post (Note: no API for single comments) */
 router.get("/:postID", async (req, res) => {
 
+    // Dereference the http request
     const { postID } = req.params;
 
     try {
-
-        // First find the post using postID
-        const targetPost = await Post.findOne({ postID });
+        // First find the post using postID with Sequelize findOne method
+        const targetPost = await Post.findOne({ where: { postID } });
         if (!targetPost) {
-            return res.status(404).json({ success: false, message: "Post not found." })
+            return res.status(404).json({ success: false, message: "Post not found." });
         };
 
-        // Find all comments that share the postID, and sort in descending order ; remove metadata
-        const comments = await Comment.find({ postID }, '-_id -__v').sort({ commentTime: -1 }).lean();
-        const commentContents = comments.map(comment => comment.commentContent); // return as array
-        res.json({ success: true, comments_info: comments, comments_array: commentContents });
+        // Find all comments that share the postID, and sort in descending order of createdAt
+        const comments = await Comment.findAll({
+            where: { postID },
+            attributes: ['memberID', 'postID', 'commentID', ['createdAt', 'commentTime'], 'commentContent'],
+            order: [['createdAt', 'DESC']]
+        });
+
+        // Create an array with just the contents
+        const commentContents = comments.map(comment => comment.commentContent);
+
+        res.json({ success: true, comments, commentContents });
 
     } catch (error) {
         console.error(error);
@@ -38,16 +45,9 @@ router.get("/:postID", async (req, res) => {
 /* API to POST a comment to a post (Requires JWT_auth middleware authentication) */
 router.post("/:postID", JWT_auth, async (req, res) => {
 
-    // Authentication and req.user extraction
+    // Dereference the http request
     const memberID = req.user.userId;
-    const member = await Member.findOne({ memberID });
-    if (!member) {
-        return res.status(404).json({ success: false, message: 'An error with your login credentials. Please contact Admin.' });
-    }
-
-    // Post-related preparations
     const { postID } = req.params;
-    const commentAuthor = member.nickname;
     const { commentContent } = req.body;
 
     // Use trim() to remove whitespaces on each end, and check length to check for whitespaces
@@ -56,23 +56,22 @@ router.post("/:postID", JWT_auth, async (req, res) => {
     }
 
     try {
-
         // First locate the post we are commenting on
-        const targetPost = await Post.findOne({ postID });
+        const targetPost = await Post.findOne({ where: { postID } });
         if (!targetPost) {
             return res.status(404).json({ success: false, message: "Post not found." })
         };
 
-        // Now add the comment and add user details as well
-        const newComment = await Comment.create({ postID, commentAuthor, commentContent });
+        // Now create a comment (commentID is auto generated)
+        const newComment = await Comment.create({ memberID, postID, commentContent });
 
-        // Respond with what was saved
+        // Respond with the saved result (change createdAt to commentTime)
         res.status(201).json({
             success: true, newComment: {
+                memberID: newComment.memberID,
                 postID: newComment.postID,
                 commentID: newComment.commentID,
-                commentTime: newComment.commentTime,
-                commentAuthor: newComment.commentAuthor,
+                commentTime: newComment.createdAt,
                 commentContent: newComment.commentContent
             }
         });
@@ -87,15 +86,8 @@ router.post("/:postID", JWT_auth, async (req, res) => {
 /* API to PUT (update) one existing comment (Requires JWT_auth middleware authentication) */
 router.put("/:postID/:commentID", JWT_auth, async (req, res) => { // require authentication before editing comment
 
-    // Authentication and req.user extraction
+    // Dereference the http request 
     const memberID = req.user.userId;
-    const member = await Member.findOne({ memberID });
-    if (!member) {
-        return res.status(404).json({ success: false, message: 'An error with your login credentials. Please contact Admin.' });
-    }
-
-    // Post edit preparations
-    const nickname = member.nickname;
     const { postID, commentID } = req.params;
     const { commentContent } = req.body;
 
@@ -105,32 +97,39 @@ router.put("/:postID/:commentID", JWT_auth, async (req, res) => { // require aut
     }
 
     try {
-
         // First find and verify that the post exists
-        const targetPost = await Post.findOne({ postID });
+        const targetPost = await Post.findByPk(postID)
         if (!targetPost) {
             return res.status(404).json({ success: false, message: "Post not found." })
         };
 
         // Now locate the comment and verify that it exists
-        const targetComment = await Comment.findOne({ commentID });
+        const targetComment = await Comment.findByPk(commentID);
         if (!targetComment) {
             return res.status(404).json({ success: false, message: "Comment not found." });
         }
 
         // Verify that the current user is the author of the comment
-        if (nickname != targetComment.commentAuthor) {
+        if (memberID !== targetComment.memberID.toString()) {
             return res.status(401).json({ success: false, message: "You are not the author of this comment." });
         }
 
-        // Update the comment (updateOne() requires use of $set to edit a specific column)
-        const result = await Comment.updateOne({ commentID }, { $set: { commentContent } });
-        if (result.matchedCount === 0) {
-            return res.status(404).json({ success: false, message: "Comment update failed." });
+        // Store the original content before updating (for JSON response)
+        const originalContent = {
+            commentContent: targetComment.commentContent,
         };
 
-        // Return result of operation to the client
-        res.json({ success: true, message: "Comment was updated successfully." });
+        // Finally, update the post and respond
+        const updatedComment = await targetComment.update({ commentContent });
+        if (!updatedComment) {
+            return res.status(404).json({ success: false, message: "Failed to update comment. Please contact Admin." });
+        }
+
+        res.json({
+            success: true, originalContent, updatedContent: {
+                commentContent: updatedComment.commentContent
+            }
+        });
 
     } catch (error) {
         console.error(error);
@@ -141,44 +140,39 @@ router.put("/:postID/:commentID", JWT_auth, async (req, res) => { // require aut
 /* API to DELETE one existing comment (Requires JWT_auth middleware authentication) */
 router.delete("/:postID/:commentID", JWT_auth, async (req, res) => {
 
-    // Authentication and req.user extraction
+    // Dereference the http request
     const memberID = req.user.userId;
-    const member = await Member.findOne({ memberID });
-    if (!member) {
-        return res.status(404).json({ success: false, message: 'An error with your login credentials. Please contact Admin.' });
-    }
-
-    // Post delete preparations
-    const nickname = member.nickname;
     const { postID, commentID } = req.params;
 
     try {
-
         // First find and verify that the post exists
-        const targetPost = await Post.findOne({ postID });
+        const targetPost = await Post.findByPk(postID)
         if (!targetPost) {
             return res.status(404).json({ success: false, message: "Post not found." })
         };
 
         // Now locate the comment and verify that it exists
-        const targetComment = await Comment.findOne({ commentID });
+        const targetComment = await Comment.findByPk(commentID);
         if (!targetComment) {
             return res.status(404).json({ success: false, message: "Comment not found." });
         }
 
-        // Verify that the user is the author of the comment
-        if (nickname != targetComment.commentAuthor) {
+        // Verify that the current user is the author of the comment
+        if (memberID !== targetComment.memberID.toString()) {
             return res.status(401).json({ success: false, message: "You are not the author of this comment." });
         }
 
-        // Now delete the post
-        const result = await Comment.deleteOne({ commentID });
-        if (result.deletedCount === 0) {
-            return res.status(404).json({ success: false, message: "Comment does not exist." });
-        }
+        // Store the original content before deleting (for JSON response)
+        const deletedContent = {
+            commentContent: targetComment.commentContent,
+        };
 
-        // Return result to client
-        res.json({ success: true, message: "Comment was successfully deleted." })
+        // Delete and respond
+        const deleted = await targetComment.destroy();
+        if (!deleted) {
+            return res.status(404).json({ success: false, message: "Failed to delete. Please contact Admin." });
+        }
+        res.json({ success: true, deletedContent });
 
     } catch (error) {
         console.error(error);
