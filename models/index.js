@@ -30,14 +30,14 @@ Comment.belongsTo(Post, { foreignKey: 'postID' }); // a comment belongs to post,
 const connectToDatabase = async () => {
     try {
         await sequelize.authenticate();
-        console.log('DB Connection Successful.');
+        console.log('>>> DB Connection Successful.');
 
         // Sync all models with database
         await sequelize.sync();
-        console.log('DB Model Sync Successful.');
+        console.log('>>> DB Model Sync Successful.');
 
     } catch (error) {
-        console.error('Unable to connect to the database:', error);
+        console.error('>>> Unable to connect to the database:', error);
     }
 };
 
