@@ -10,20 +10,15 @@ import { MemberEntity } from '../members/members.entity';
 @Injectable()
 export class PostsService {
     constructor(
-        private postRepository: PostsRepository,
+        private postsRepository: PostsRepository,
     ) { }
 
-    async getAllPosts(member: MemberEntity): Promise<PostEntity[]> {
-        const query = this.postRepository.createQueryBuilder('post');
-
-        query.where('post.memberID = :memberID', { memberId: member.memberID });
-
-        const posts = await query.getMany();
-        return posts;
+    async getAllPosts(): Promise<PostEntity[]> {
+        return this.postsRepository.getAllExistingPosts();
     }
 
     async getPostById(postID: string): Promise<PostEntity> {
-        const found = await this.postRepository.findOneBy({ postID });
+        const found = await this.postsRepository.findOneBy({ postID }); // Custom Repository까지 가지 않음
 
         if (!found) {
             throw new NotFoundException(`Cant find Post with id ${postID}`);
@@ -31,25 +26,31 @@ export class PostsService {
         return found;
     }
 
-    createPost(data: CreatePostDTO, user: MemberEntity): Promise<PostEntity> {
-        return this.postRepository.createPost(data, user);
+    async getAllMyPosts(member: MemberEntity): Promise<PostEntity[]> {
+        return this.postsRepository.getAllPostsForMember(member);
     }
 
-    async deletePost(id: number, member: MemberEntity): Promise<void> {
+    createPost(data: CreatePostDTO, user: MemberEntity): Promise<PostEntity> {
+        return this.postsRepository.createPost(data, user);
+    }
 
-        const result = await this.postRepository.createQueryBuilder().delete().from(PostEntity).where("id = :id", { id: id }).andWhere("memberId = :memberId", { memberId: member.id }).execute();
+    async deletePost(postID: string, user: MemberEntity): Promise<{ success: boolean }> {
 
-        if (result.affected === 0) {
-            throw new NotFoundException(`Cant find Post with id ${id}`);
+        const { affected } = await this.postsRepository.deletePostWithCondition(postID, user.memberID);
+
+        if (affected === 0) {
+            throw new NotFoundException(`Cant find Post with id ${postID}`);
         }
 
-        console.log('result', result);
+        return { success: true };
     }
 
-    async updatePostStatus(id: number, status: PostStatus): Promise<PostEntity> {
-        const post = await this.getPostById(id);
+    async updatePostStatus(postID: string, status: PostStatus): Promise<PostEntity> {
+
+        const post = await this.getPostById(postID); // Custom Repository까지 가지 않음
+
         post.postStatus = status;
-        await this.postRepository.save(post);
+        await this.postsRepository.save(post);
 
         return post;
     }

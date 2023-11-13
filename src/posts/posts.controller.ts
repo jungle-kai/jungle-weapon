@@ -23,14 +23,8 @@ export class PostsController {
     constructor(private postsService: PostsService) { }
 
     @Get('/')
-    getAllPosts(@GetUser() user: MemberEntity): Promise<PostEntity[]> {
-        return this.postsService.getAllPosts(user);
-    }
-
-    @Post('/')
-    @UsePipes(new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true })) // Option이 붙은 ValidationPipe
-    createPost(@Body() data: CreatePostDTO, @GetUser() user: MemberEntity,): Promise<PostEntity> {
-        return this.postsService.createPost(data, user);
+    getAllExistingPosts(): Promise<PostEntity[]> {
+        return this.postsService.getAllPosts();
     }
 
     @Get('/:postID')
@@ -38,17 +32,38 @@ export class PostsController {
         return this.postsService.getPostById(postID);
     }
 
+    @Get('/my')
+    @UseGuards(AuthGuard('jwt'))
+    getAllMyPosts(@GetUser() user: MemberEntity): Promise<PostEntity[]> {
+        return this.postsService.getAllMyPosts(user);
+    }
+
+    @Post('/')
+    @UseGuards(AuthGuard('jwt'))
+    @UsePipes(new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true })) // Option이 붙은 ValidationPipe
+    createPost(
+        @Body() data: CreatePostDTO,
+        @GetUser() user: MemberEntity,
+    ): Promise<PostEntity> {
+        return this.postsService.createPost(data, user);
+    }
+
     @Delete('/:postID')
-    deletePost(@Param('postID') postID: string, @GetUser() user: MemberEntity): Promise<void> {
+    @UseGuards(AuthGuard('jwt'))
+    deletePost(
+        @Param('postID') postID: string,
+        @GetUser() user: MemberEntity
+    ): Promise<{ success: boolean }> {
         return this.postsService.deletePost(postID, user);
     }
 
-    @Patch('/:id/status')
+    @Patch('/:postID/status')
+    @UseGuards(AuthGuard('jwt'))
     updatePostStatus(
-        @Param('id', ParseIntPipe) id: number,
+        @Param('postID') postID: string,
         @Body('status', PostStatusValidationPipe) status: PostStatus,
     ): Promise<PostEntity> {
-        return this.postsService.updatePostStatus(id, status);
+        return this.postsService.updatePostStatus(postID, status);
     }
 
 }

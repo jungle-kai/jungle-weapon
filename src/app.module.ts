@@ -13,10 +13,10 @@ import { typeORMConfig } from './_configs/typeorm.config';
 
 @Module({
   imports: [
-    PostsModule,
-    // CommentsModule,
+    TypeOrmModule.forRoot(typeORMConfig),
     MembersModule,
-    TypeOrmModule.forRoot(typeORMConfig)
+    PostsModule,
+    // CommentsModule
   ],
   controllers: [AppController],
   providers: [AppService],
