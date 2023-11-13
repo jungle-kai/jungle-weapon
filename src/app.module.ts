@@ -4,7 +4,6 @@ import { AppService } from './app.service';
 
 /* Modules */
 import { PostsModule } from './posts/posts.module';
-import { CommentsModule } from './comments/comments.module';
 import { MembersModule } from './members/members.module';
 
 /* typeORM */
@@ -16,7 +15,6 @@ import { typeORMConfig } from './_configs/typeorm.config';
     TypeOrmModule.forRoot(typeORMConfig),
     MembersModule,
     PostsModule,
-    // CommentsModule
   ],
   controllers: [AppController],
   providers: [AppService],

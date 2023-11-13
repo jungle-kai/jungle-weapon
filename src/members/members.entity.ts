@@ -1,6 +1,6 @@
 import { Entity, PrimaryGeneratedColumn, Column, OneToMany, Unique } from 'typeorm';
 import { PostEntity } from '../posts/posts.entity';
-import { CommentEntity } from '../comments/comments.entity';
+// import { CommentEntity } from '../comments/comments.entity';
 
 @Entity()
 @Unique(['nickname'])
@@ -17,6 +17,6 @@ export class MemberEntity {
     @OneToMany(() => PostEntity, post => post.member)
     posts: PostEntity[];
 
-    @OneToMany(() => CommentEntity, comment => comment.member)
-    comments: CommentEntity[];
+    // @OneToMany(() => CommentEntity, comment => comment.member)
+    // comments: CommentEntity[];
 }

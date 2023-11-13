@@ -43,26 +43,27 @@ export class MembersService {
     }
 
     /* 로그인 */
-    async login(data: LoginDTO): Promise<{ success: boolean, accessToken: string }> {
+    async login(data: LoginDTO): Promise<{ success: boolean, accessToken: string, memberID: string }> {
 
         /* DTO에서 내용 불러오기 */
         const { nickname, password } = data;
 
         /* 가입된 닉네임이 맞는지 검증하기 */
-        const nameCheck = await this.membersRepository.findByNickname(nickname);
-        if (!nameCheck) {
+        const user = await this.membersRepository.findByNickname(nickname);
+        if (!user) {
             throw new HttpException('Nickname or Password Incorrect', HttpStatus.UNAUTHORIZED);
         }
 
-        /* 닉네임 비밀번호가 맞는지 검증한 뒤 토큰 발급하기 */
-        if (bcrypt.compare(password, nameCheck.password)) {
-            const payload = { memberID: nameCheck.memberID };
-            const accessToken = await this.jwtService.sign(payload);
-
-            return { success: true, accessToken: accessToken };
-        } else {
-            throw new HttpException('Nickname or Password Incorrect', HttpStatus.UNAUTHORIZED)
+        /* 비밀번호 검증 */
+        const isPasswordValid = await bcrypt.compare(password, user.password);
+        if (!isPasswordValid) {
+            throw new HttpException('Nickname or Password Incorrect', HttpStatus.UNAUTHORIZED);
         }
 
+        /* 토큰 발급하기 */
+        const payload = { memberID: user.memberID };
+        const accessToken = await this.jwtService.sign(payload);
+
+        return { success: true, accessToken: accessToken, memberID: user.memberID };
     }
 }

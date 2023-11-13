@@ -17,14 +17,14 @@ import { AuthGuard } from '@nestjs/passport';
 import { GetUser } from '../members/get-member.decorator';
 
 @Controller('posts')
-@UseGuards(AuthGuard())
 export class PostsController {
 
     constructor(private postsService: PostsService) { }
 
-    @Get('/')
-    getAllExistingPosts(): Promise<PostEntity[]> {
-        return this.postsService.getAllPosts();
+    @Get('/my') // 순서가 굉장히 중요함 ; '/', '/:postID', '/my' 순서로 했더니 'my'를 UUID로 읽어버림
+    @UseGuards(AuthGuard('jwt'))
+    getAllMyPosts(@GetUser() user: MemberEntity): Promise<PostEntity[]> {
+        return this.postsService.getAllMyPosts(user);
     }
 
     @Get('/:postID')
@@ -32,10 +32,9 @@ export class PostsController {
         return this.postsService.getPostById(postID);
     }
 
-    @Get('/my')
-    @UseGuards(AuthGuard('jwt'))
-    getAllMyPosts(@GetUser() user: MemberEntity): Promise<PostEntity[]> {
-        return this.postsService.getAllMyPosts(user);
+    @Get('/')
+    getAllExistingPosts(): Promise<PostEntity[]> {
+        return this.postsService.getAllPosts();
     }
 
     @Post('/')

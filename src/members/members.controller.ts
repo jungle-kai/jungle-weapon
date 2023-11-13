@@ -14,20 +14,32 @@ export class MembersController {
 
     @Post('register')
     @UsePipes(new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true }))
-    async register(@Body() data: CreateMemberDTO): Promise<{ success: boolean, nickname: string }> {
+    async register(
+        @Body() data: CreateMemberDTO
+    ): Promise<{ success: boolean, nickname: string }> {
         return await this.membersService.register(data);
     }
 
     @Post('login')
     @UsePipes(new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true }))
-    async login(@Body() data: LoginDTO): Promise<{ success: boolean, accessToken: string }> {
-        return await this.membersService.login(data);
+    async login(
+        @Body() data: LoginDTO,
+        @Res() response: Response
+    ) {
+        const result = await this.membersService.login(data);
+        response.cookie('jwt', result.accessToken, { httpOnly: true });
+
+        // 테스트 목적으로 accessToken을 Response Body에 넣어 지급 (ThunderClient, Postman)
+        return response.send({ success: result.success, memberID: result.memberID });
     }
 
     @Post('logout') // 쿠키의 삭제는 Response 레벨에서 이루어지기 때문에 Controller에서 처리하는게 좋은 Practice라고 함
     @UseGuards(AuthGuard('jwt'))
-    logout(@Req() req: Request, @Res() res: Response) {
-        res.clearCookie('nest_typeORM_postgreSQL_jwt'); // Replace with your actual cookie name
+    logout(
+        @Req() req: Request,
+        @Res() res: Response
+    ) {
+        res.clearCookie('jwt');
         return res.status(HttpStatus.OK).json({ success: true, message: "Logged out successfully." });
     }
 }
